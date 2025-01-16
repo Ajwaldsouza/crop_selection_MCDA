@@ -1,0 +1,60 @@
+version: 1.0
+Alternatives: &alternatives
+  Plant_1:
+    height: 1
+  Plant_2:
+    height: 2
+# Goal Section
+#
+Goal:
+name: Crops
+decision-makers:
+  - Ajwal: 1
+  - Lauren: 1
+  # description: >
+  #   In this decision making problem, we want to objectively assess the 
+  #   suitability of various medicinal plant species for indoor cultivation in 
+  #   controlled environment systems (plant factories or vertical farms). With 
+  #   this AHP, we want to derive the relative weightage of assessment criteria 
+  #   we are using.
+preferences:
+  Ajwal:
+    pairwise:
+    - [plant, medicinal, 7]
+    - [plant, see, 9]
+    - [medicinal, see, 7]
+  Lauren:
+    pairwise:
+    - [plant, medicinal, 6]
+    - [plant, see, 7]
+    - [medicinal, see, 3]
+children:
+  plant:
+    preferences:
+      Ajwal:
+        pairwise:
+        - [plant_height, life_cycle, 0]
+        - [plant_height, harvest_part, 3]
+        - [life_cycle, harvest_part, 5]
+      Lauren:
+        pairwise:
+        - [plant_height, life_cycle, 3]
+        - [plant_height, harvest_part, 2]
+        - [life_cycle, harvest_part, 1]
+  medicinal:
+    preferences:
+      Ajwal:
+        pairwise:
+        - [clinical_trials, med_act, 6]
+      Lauren: 
+        pairwise:
+        - [clinical_trials, med_act, 7]
+  see:
+    preferences:
+      Ajwal:
+        pairwise:
+        - [comm_prod, pop_stat, 5]
+      Lauren:
+        pairwise:
+        - [comm_prod, pop_stat, 4]
+# End of goal section
