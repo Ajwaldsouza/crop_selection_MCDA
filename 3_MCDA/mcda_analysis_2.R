@@ -11,6 +11,8 @@ librarian::shelf(tidyverse,
                  ahpsurvey,
                  magrittr,
                  knitr,
+                 readxl,
+                 quiet = TRUE,
                  update_all = FALSE)
 
 
@@ -20,8 +22,10 @@ setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 
 
 
+#_______________________________________________________________________________
+# 1. DATA IMPORT CLEANING AND FORMATTING
+#_______________________________________________________________________________
 
-# DATA IMPORT CLEANING AND FORMATTING
 
 # Importing raw data file
 survey_data <- read_csv("raw_survey_data.csv")%>%
@@ -56,8 +60,14 @@ head(survey_data)
 
 
 
+survey_data$height_part <- as.numeric(survey_data$height_part)
 
 
+
+
+#_______________________________________________________________________________
+# 2. AHP ANALYSIS AND WEIGHT AGGREGATION
+#_______________________________________________________________________________
 
 ## Define the attribute used
 # Loading the data
@@ -71,13 +81,21 @@ dict <- c("height"     = "Plant height",
           "products"   = "Number of commercial products",
           "population" = "Population status")
 
-# Creating pairwise comparison matrices
-AHP_data_mat <- ahp.mat(df = survey_data, atts, negconvert = TRUE)
+# Creating pairwise comparison matrices from the raw survey dataset. 
+AHP_data_mat <- ahp.mat(df = survey_data, atts, negconvert = TRUE) #This function also converts negative values to positive values  and converts negative to reciprocal values for the pairwise comparison matrices.
+
+
+# Display the first row of the pairwise comparison matrices
 AHP_data_mat %>% head(1) %>% kable()
 
 
-# compute the individual priorities of the decision-makers, aggregated as geometric mean
-geom_ind <- ahp.indpref(AHP_data_mat, atts, method = "geometric")
+# Compute the consistency ratio of the decision-makers
+ahp.cr(AHP_data_mat, atts, ri = NULL) %>% kable()
+
+
+
+# Compute the individual priorities of the decision-makers, aggregated as geometric mean
+geom_ind <- ahp.indpref(AHP_data_mat, atts, method = "eigen")
 round(geom_ind, 3) %>% 
   rownames_to_column('ID') %>% 
   kable()
@@ -85,5 +103,52 @@ round(geom_ind, 3) %>%
 
 
 # compute the aggregated priorities of all decision-makers using the specified methods
-geom_agg <- ahp.aggpref(AHP_data_mat, atts, method = "arithmetic", aggmethod = "geometric")
-round(geom_agg, 3) %>% t() %>% kable()
+agg_weights <- ahp.aggpref(AHP_data_mat, atts, method = "eigen", aggmethod = "geometric")
+round(agg_weights, 3) %>% t() %>% kable()
+
+
+
+
+
+#_______________________________________________________________________________
+# 3. DECISION MATRIX AND WEIGHTED SUM ANALYSIS
+#_______________________________________________________________________________
+
+# Importing the decision matrix file
+decision_mat <- read_excel("Species_inclusion_exclusion.xlsx")%>%
+  select(c(2:3, 8:12))
+
+
+#Add the weights to the decision matrix
+
+
+
+
+
+# Convert categorical data to numeric 5-point scale
+
+
+
+# Normalize the raw data for each criteria
+
+
+# Calculate the weighted sum for each species
+
+
+# Rank the species based on the weighted sum
+
+
+
+
+
+#_______________________________________________________________________________
+# 4. DATA VISUALIZATION AND SUMMARY
+#_______________________________________________________________________________
+
+
+
+
+
+
+
+### END OF SCRIPT ###
