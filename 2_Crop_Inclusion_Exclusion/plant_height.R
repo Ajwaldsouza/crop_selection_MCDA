@@ -46,7 +46,7 @@ setwd(dirname(getActiveDocumentContext()$path))
 #-------------------------------------------------------------------------------
 
 #Import the raw master dataset
-species_dataset_raw <- read_csv("species_dataset_raw.csv") # This is the dataset that will contain all the raw data for the assessment criteria. 
+species_dataset_raw <- read_csv("species_master_dataset.csv") # This is the dataset that will contain all the raw data for the assessment criteria. 
 
 # filter species that contain 'count' <30. This is to remove species with low counts of research papers
 species_dataset_filtered <- species_dataset_raw %>%
@@ -63,7 +63,7 @@ species_dataset_filtered <- species_dataset_raw %>%
 
 # Import the master file and clean to only retain plant height-related columns and rows
 plant_height <- read_delim(
-  "plant_height.txt",
+  "raw_data/plant_height.txt",
   delim = "\t",
   quote = "'",
   escape_double = FALSE,
@@ -106,10 +106,10 @@ plant_height_summary_uid <-
   mutate(uid = get_uid(AccSpeciesName, db = "ncbi", ask = TRUE))
 
 
-write.csv(plant_height_summary_uid, "plant_height_summary_uid.csv")
+write.csv(plant_height_summary_uid, "working_files/plant_height_summary_uid.csv")
 
 # If you need this dataset again, import it without having to run through the uid process.
-plant_height_summary_uid <- read_csv("plant_height_summary_uid.csv")
+plant_height_summary_uid <- read_csv("working_files/plant_height_summary_uid.csv")
 
 
 
@@ -127,7 +127,12 @@ species_dataset1 <-
   dplyr::left_join(plant_height_summary_uid %>% 
   select(uid, median_height), by = "uid")
 
+write.csv(species_dataset1, "working_files/species_dataset_1.csv")
 
+
+
+# If you need this dataset again, import it without having to run through the uid process.
+species_dataset1 <- read_csv("working_files/species_dataset_1.csv")
 
 
 
@@ -198,6 +203,14 @@ species_dataset2 <- add_pop_status(species_dataset1)
 
 
 
+write.csv(species_dataset2, "species_dataset_2.csv")
+
+
+# If you need this dataset again, import it without having to run through the uid process.
+species_dataset2 <- read_csv("working_files/species_dataset_2.csv")
+
+
+
 
 
 #-------------------------------------------------------------------------------
@@ -222,13 +235,13 @@ species_dataset2 <- add_pop_status(species_dataset1)
 
 
 # Get list of all CSV files in the 'raw' folder. The raw files should be downloded seprately and stored in the 'raw' folder
-csv_files <- list.files(path = "raw", pattern = "*.csv", full.names = TRUE)
+csv_files <- list.files(path = "raw_data/activities_raw_data/", pattern = "*.csv", full.names = TRUE)
 
-
+csv_files
 
 
 # Create empty dataframe to store results
-count <- tibble(
+activities_count <- tibble(
   species = character(),
   activities = numeric()
 )
@@ -237,6 +250,8 @@ count <- tibble(
 for (file in csv_files) {
   # Extract just the file name without path
   file_name <- basename(file)
+   # Remove .csv extension
+  file_name <- str_remove(file_name, "\\.csv$")
   
   # Read the CSV file
   data <- read_csv(file)
@@ -249,16 +264,17 @@ for (file in csv_files) {
   }
   
   # Add results to the count dataframe
-  count <- count %>%
+  activities_count <- activities_count %>%
     add_row(species = file_name, activities = activity_count)
 }
 
+
+
 # Display the results
-print(count)
+print(activities_count)
 
 # Optional: Save the results
-write_csv(count, "activity_count_results.csv")
-
+write_csv(activities_count, "working_files/activity_count_results.csv")
 
 
 
@@ -269,7 +285,7 @@ write_csv(count, "activity_count_results.csv")
 # Merge the datasets based on the 'species' column
 species_dataset3 <- 
   species_dataset2 %>%
-  dplyr::left_join(count, by = c("species" = "species"))
+  dplyr::left_join(activities_count, by = c( "plant_name"="species"))
 
 
 
