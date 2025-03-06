@@ -288,17 +288,7 @@ species_dataset3 <-
   dplyr::left_join(activities_count, by = c( "plant_name"="species"))
 
 
-
-
-
-
-
-
-
-
-
-
-
-
+#write the datasets to a csv file
+write.csv(species_dataset3, "working_files/species_dataset_3.csv")
 
 write.csv(species_dataset3, "species_dataset_data_pending.csv")

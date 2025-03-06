@@ -1,0 +1,102 @@
+,...1,id,plant_name,uid,count,part,duration,products,trials,height,population,activities
+1,1,1,Withania somnifera,126910,221,Roots,170,10,26,0.4,DD,361
+2,2,2,Salvia miltiorrhiza,226208,214,Roots,150,10,18,0.3,DD,166
+3,3,3,Moringa oleifera,3735,211,Leaves,,10,23,4,LC,561
+4,4,4,Panax ginseng,4054,154,Roots,1460,10,104,0.4,DD,768
+5,5,5,Catharanthus roseus,4058,148,Leaves,60,10,0,0.35,DD,355
+6,6,6,Andrographis paniculata,175694,139,Leaves,45,10,12,0.7,DD,21
+7,7,7,Cannabis sativa,3483,126,Flowers,150,10,756,1.65,DD,363
+8,8,8,Centella asiatica,48106,119,Leaves,60,10,17,0.225,LC,587
+9,9,9,Nigella sativa,555479,117,Seeds,150,10,41,0.3,DD,387
+10,10,10,Aloe vera,34199,115,Leaves,150,10,47,0.3,DD,564
+11,11,11,Hypericum perforatum,65561,113,Aerial Parts,150,10,39,0.515,LC,641
+12,12,12,Artemisia annua,35608,110,Aerial Parts,150,10,5,0.975,DD,502
+13,13,13,Ocimum basilicum,39350,104,Leaves,60,10,5,0.4,DD,819
+14,14,14,Panax notoginseng,44586,100,Roots,1825,10,8,0.5,DD,217
+15,15,15,Curcuma longa,136217,97,Rhizome,240,10,84,0.7,DD,658
+16,16,16,Salvia officinalis,38868,95,Leaves,75,10,32,0.36,LC,749
+17,17,17,Melissa officinalis,39338,84,Leaves,60,10,23,0.55,LC,368
+18,18,18,Momordica charantia,3673,83,Fruit,,10,13,4,DD,444
+19,19,19,Azadirachta indica,124943,82,Leaves,,10,16,10.2,LC,379
+20,20,20,Stevia rebaudiana,55670,80,Leaves,60,10,22,0.6,DD,599
+21,21,21,Dendrobium officinale,142615,79,Stems,365,10,0,0.1,CR,0
+22,22,22,Bacopa monnieri,263974,78,Aerial Parts,180,10,8,0.0275,LC,204
+23,23,23,Ginkgo biloba,3311,76,Leaves,,10,87,30,EN,0
+24,24,24,Silybum marianum,92921,76,Seeds,120,10,22,1.45,LC,546
+25,25,25,Zingiber officinale,94328,74,Rhizome,240,10,90,0.75,DD,843
+26,26,26,Salvia rosmarinus,39367,71,Leaves,90,10,2,0.6,LC,749
+27,27,27,Glycyrrhiza glabra,49827,70,Roots,1095,10,25,0.775,LC,812
+28,28,28,Ocimum tenuiflorum,204149,68,Leaves,90,10,4,0.6,DD,519
+29,29,29,Tinospora cordifolia,285590,68,Stems,,10,0,10,DD,0
+30,30,30,Thymus vulgaris,49992,66,Aerial Parts,90,10,18,0.2,LC,756
+31,31,31,Scutellaria baicalensis,65409,63,Roots,180,10,3,0.31,DD,487
+32,32,32,Calotropis procera,141467,62,Roots,280,10,0,1.5,LC,0
+33,33,33,Glycyrrhiza uralensis,74613,61,Roots,1095,10,3,0.3,DD,443
+34,34,34,Anethum foeniculum,2849586,59,Seeds,70,10,0,1.5,DD,0
+35,35,35,Allium sativum,4682,58,Bulb,180,10,56,0.4625,DD,813
+36,36,36,Echinacea purpurea,53751,58,Whole Plant,120,10,23,0.68,LC,517
+37,37,37,Origanum vulgare,39352,58,Leaves,90,10,4,0.4,LC,163
+38,38,38,Crocus sativus,82528,54,Flowers,60,10,3,0.15,DD,504
+39,39,39,Astragalus membranaceus,649199,53,Roots,"1,095",10,24,1,DD,575
+40,40,40,Gymnema sylvestre,4068,52,Leaves,,10,7,4,DD,306
+41,41,41,Mentha x piperita,34256,50,Leaves,90,10,48,0.6,DD,752
+42,42,42,Rehmannia glutinosa,99300,50,Roots,180,10,1,0.45,DD,273
+43,43,43,Lonicera japonica,105884,48,Flowers,365,10,2,0.3048,DD,371
+44,44,44,Paris polyphylla,49666,47,Rhizome,2190,10,0,0.75,VU,17
+45,45,45,Picrorhiza kurrooa,195120,47,Roots,1095,10,0,0.9,DD,75
+46,46,46,Allium cepa,4679,46,Bulb,90,10,22,0.7,DD,780
+47,47,47,Camellia sinensis,4442,43,Leaves,1095,10,363,3,DD,870
+48,48,48,Cyclocarya paliurus,117167,43,Leaves,,10,1,30,DD,0
+49,49,49,Emblica officinalis,296036,43,Fruit,1095,10,6,1.8,DD,0
+50,50,50,Angelica sinensis,165353,42,Roots,730,10,2,0.75,DD,588
+51,51,51,Coriandrum sativum,4047,42,Aerial Parts,45,10,3,0.5,DD,795
+52,52,52,Eucommia ulmoides,4392,41,Bark,,10,0,20,VU,375
+53,53,53,Matricaria chamomilla,98504,41,Flowers,75,10,26,0.4195,LC,0
+54,54,54,Plectranthus barbatus,41228,41,Roots,150,10,2,0.6,DD,72
+55,55,55,Valeriana jatamansi,59170,41,Roots,730,10,14,0.5,DD,137
+56,56,56,Cymbopogon citratus,66014,39,Leaves,180,10,5,1.2,DD,495
+57,57,57,Peganum harmala,43879,39,Seeds,180,10,0,0.175,DD,89
+58,58,58,Perilla frutescens,48386,39,Leaves,75,10,2,0.4,LC,613
+59,59,59,Portulaca oleracea,46147,39,Aerial Parts,60,10,1,0.1,LC,571
+60,60,60,Urtica dioica,3501,39,Whole Plant,180,10,7,1.001546495,LC,817
+61,61,61,Justicia adhatoda,141317,38,Leaves,365,10,0,3,LC,103
+62,62,62,Matricaria chamomilla var. recutita,127986,38,Flowers,150,10,0,0.4,LC,0
+63,63,63,Murraya koenigii,159030,38,Leaves,,10,0,5,DD,382
+64,64,64,Zanthoxylum armatum,67938,38,Fruit,,10,0,5,LC,0
+65,65,65,Aegle marmelos,68527,37,Leaves,,10,0,10,NT,319
+66,66,66,Gastrodia elata,91201,37,Tuber,730,10,4,0.75,VU,177
+67,67,67,Houttuynia cordata,16752,37,Aerial Parts,60,10,1,0.75,DD,527
+68,68,68,Solanum nigrum,4112,37,Leaves,60,10,6,0.6,DD,316
+69,69,69,Calendula officinalis,41496,36,Flowers,60,10,3,0.4,DD,471
+70,70,70,Psidium guajava,120290,36,"Leaves, Fruit",,10,7,10,LC,731
+71,71,71,Trachyspermum ammi,52570,36,Seeds,150,10,0,0.7,DD,288
+72,72,72,Nelumbo nucifera,4432,35,Seeds,120,10,2,1.5,DD,0
+73,73,73,Zataria multiflora,751877,35,Aerial Parts,180,10,2,0.6,DD,12
+74,74,74,Lavandula angustifolia,39329,34,Flowers,515,10,100,0.38,LC,357
+75,75,75,Morus alba,3498,34,Leaves,,10,3,10,LC,684
+76,76,76,Rhodiola rosea,203015,34,Roots,365,10,7,0.15,LC,0
+77,77,77,Schisandra chinensis,50507,34,Fruit,,10,4,5,DD,423
+78,78,78,Acorus calamus,4465,33,Rhizome,300,10,0,1.2,LC,486
+79,79,79,Clitoria ternatea,43366,33,Roots,,10,1,4,DD,72
+80,80,80,Morinda citrifolia,43522,33,Fruit,,10,8,6.096,LC,442
+81,81,81,Myrtus communis,119949,33,Leaves,180,10,0,1.135,LC,371
+82,82,82,Plantago ovata,185002,33,Seeds,120,10,3,0.025,LC,222
+83,83,83,Punica granatum,22663,33,Fruit,,10,102,6.096,LC,0
+84,84,84,Vitex negundo,361442,33,Leaves,365,10,1,1.5,LC,0
+85,85,85,Capparis spinosa,65558,32,Fruit,730,10,0,0.75,LC,479
+86,86,86,Citrullus colocynthis,252529,32,Fruit,160,10,1,1.65,DD,389
+87,87,87,Hibiscus sabdariffa,183260,32,Flowers,120,10,18,1.5,DD,0
+88,88,88,Lantana camara,126435,32,Leaves,90,10,0,2,DD,349
+89,89,89,Lessertia frutescens,47091,32,Roots,180,10,1,1.7,DD,0
+90,90,90,Lycium barbarum,112863,32,Fruit ,365,10,10,2.25,DD,177
+91,91,91,Mentha arvensis,292239,32,Leaves,60,10,2,0.41,LC,448
+92,92,92,Syzygium cumini,260142,32,Bark,,10,2,18.288,LC,0
+93,93,93,Teucrium polium,1117157,32,Aerial Parts,120,10,0,0.19,DD,381
+94,94,94,Annona muricata,13337,31,Leaves,,10,6,8,LC,0
+95,95,95,Cuminum cyminum,52462,31,Seeds,120,10,16,0.25,DD,536
+96,96,96,Gymnanthemum amygdalinum,82755,31,Leaves,,10,1,8,DD,0
+97,97,97,Hippophae rhamnoides,193516,31,Fruit,"1,095",10,9,2.375,LC,426
+98,98,98,Mucuna pruriens,157652,31,Seeds,,10,3,5,DD,72
+99,99,99,Swertia chirayita,137887,31,Whole Plant,365,10,2,0.75,DD,0
+100,100,100,Tetrastigma hemsleyanum,1006121,31,Whole Plant,,10,0,5,DD,0
+,,,,,,,,,0,,,

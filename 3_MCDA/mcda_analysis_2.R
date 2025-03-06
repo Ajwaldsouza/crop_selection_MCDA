@@ -12,6 +12,8 @@ librarian::shelf(tidyverse,
                  magrittr,
                  knitr,
                  readxl,
+                 sysfonts,
+                 showtext,
                  quiet = TRUE,
                  update_all = FALSE)
 
@@ -97,7 +99,7 @@ ind_weight <- ahp.indpref(AHP_data_mat, atts, method = "eigen")%>%
   round(3) %>% 
   rownames_to_column('ID') %>%
   as_tibble()
-kable(geom_ind)
+kable(ind_weight)
 
 # compute the aggregated priorities of all decision-makers using the specified methods
 agg_weight <- ahp.aggpref(AHP_data_mat, atts, method = "eigen", aggmethod =  "geometric")%>%
@@ -108,42 +110,236 @@ kable(agg_weight)
 
 
 #_______________________________________________________________________________
-# 3. DECISION MATRIX AND WEIGHTED SUM ANALYSIS
+# 3. DECISION MATRIX IMPORT AND NORMALIZATION
 #_______________________________________________________________________________
 
 # Importing the decision matrix file
-decision_mat <- read_excel("Species_inclusion_exclusion.xlsx")%>%
-  select(c(2:3, 8:12))
+decision_mat <- read_csv("species_dataset_data_complete.csv")
 
+
+# Filter the decision matrix to remove trees (height>=4)
+decision_mat <- decision_mat %>%
+  filter(height < 4)
+
+
+
+# Convert raw data to numeric 5-point scale
+
+## Define the binning function for continuous variables with direction control
+bin_continuous <- function(value, bins, reverse = TRUE) {
+  if (reverse) {
+    # Smaller values get higher scores (5,4,3,2,1)
+    cut(value, breaks = bins, labels = 5:1, include.lowest = TRUE)
+  } else {
+    # Larger values get higher scores (1,2,3,4,5)
+    cut(value, breaks = bins, labels = 1:5, include.lowest = TRUE)
+  }
+}
+
+## Define categorical mapping function
+map_categorical <- function(value, mapping) {
+  unname(sapply(value, function(x) mapping[x]))
+}
+
+## Define the binning keys for continuous variables
+bin_keys <- list(
+  height = c(0, 0.30, 0.5, 0.75, 1, Inf), # Height in meters
+  duration = c(0, 60, 120, 180, 240, Inf), # Duration in days
+  trials = c(0, 20, 50, 100, 200, Inf), # Number of clinical trials
+  activities = c(0, 75, 200, 400, 700, Inf), # Number of medicinal activities
+  products = c(0, 5, 10, 20, 40, Inf) # Number of commercial products
+)
+
+# Define which attributes should have reversed scoring (smaller is better)
+reverse_scoring <- c("height", "duration")  # For these, smaller values get higher scores
+# Attributes not in this list will have normal scoring (larger is better)
+
+# Define mapping for categorical variables
+cat_mappings <- list(
+part = c(
+  "Leaves" = 5,
+  "Aerial Parts" = 5, 
+  "Whole Plant" = 5,
+  "Stems" = 5,
+  "Fruit" = 4,
+  "Flowers" = 3,
+  "Seeds" = 2,
+  "Roots" = 1,
+  "Rhizome" = 1,
+  "Tuber" = 1,
+  "Bulb" = 1
+),  
+population = c(
+    "EN" = 5, # Endangered
+    "CR" = 5, # Critically Endangered
+    "VU" = 4, # Vulnerable
+    "NT" = 3, # Near Threatened
+    "LC" = 1, # Least Concern
+    "DD" = 1 # Data Deficient
+  )
+)
+
+# Enhanced function to handle both continuous and categorical variables with different directions
+convert_to_ranking <- function(data, bin_keys, cat_mappings, reverse_scoring) {
+  ranked_data <- data
+  
+# Process continuous variables
+for (col in names(bin_keys)) {
+  if (col %in% names(data)) {
+    # Check if this attribute has reverse scoring
+    is_reverse <- col %in% reverse_scoring
+    # Add some debugging to verify
+    print(paste("Column:", col, "- Reverse scoring:", is_reverse))
+    # Make sure to convert to numeric
+    ranked_data[[paste0(col, "_rank")]] <- as.numeric(as.character(bin_continuous(data[[col]], bin_keys[[col]], reverse = is_reverse)))
+  }
+}
+
+  # Process categorical variables
+  for (col in names(cat_mappings)) {
+    if (col %in% names(data)) {
+      ranked_data[[paste0(col, "_rank")]] <- map_categorical(data[[col]], cat_mappings[[col]])
+    }
+  }
+  
+  return(ranked_data)
+}
+
+# Convert the column values to rankings
+ranked_decision_mat <- 
+convert_to_ranking(decision_mat, bin_keys, cat_mappings, reverse_scoring) %>% 
+  select(c(3,4, 14:20))
+
+
+
+
+
+
+
+
+#_______________________________________________________________________________
+# 4. WEIGHTED SUM ANALYSIS
+#_______________________________________________________________________________
 
 #Add the weights to the decision matrix
 
+# Create a weights dataframe with the same structure as ranked_decision_mat
+weights_df <- data.frame(matrix(NA, nrow = 1, ncol = ncol(ranked_decision_mat)))
+colnames(weights_df) <- colnames(ranked_decision_mat)
+weights_df[[1]] <- "Weights" # Set "Weights" label in the first column (species name)
+
+
+
+# Map the weights from agg_weight to the corresponding columns in ranked_decision_mat
+for (col_name in names(ranked_decision_mat)) {
+  # Check if it's a rank column
+  if (grepl("_rank$", col_name)) {
+    # Extract the base attribute name by removing "_rank" suffix
+    base_name <- gsub("_rank$", "", col_name)
+    
+    # If the base attribute exists in agg_weight, add its value
+    if (base_name %in% names(agg_weight)) {
+      weights_df[[col_name]] <- as.numeric(agg_weight[[base_name]])
+    }
+  }
+}
+
+# Combine the weights row with the original data
+weighted_decision_mat <- rbind(weights_df, ranked_decision_mat)
 
 
 
 
-# Convert categorical data to numeric 5-point scale
 
 
 
-# Normalize the raw data for each criteria
+
+# Calculate the weighted values by multiplying each value by its corresponding weight
+weighted_values_mat <- weighted_decision_mat %>%
+  slice(-1) %>%
+  mutate(species_name = .[[1]], species_family = .[[2]]) %>%
+  select(ends_with("_rank")) %>%
+  mutate(across(everything(), ~as.numeric(.x) * as.numeric(weighted_decision_mat[1, cur_column()]))) %>%
+  bind_cols(weighted_decision_mat[-1, 1:2]) %>%
+  select(1:2, everything())
 
 
-# Calculate the weighted sum for each species
 
 
-# Rank the species based on the weighted sum
+# Calculate weighted sum for each species
+species_scores <- weighted_values_mat %>%
+  rowwise() %>%
+  mutate(total_score = sum(c_across(ends_with("_rank")), na.rm = TRUE)) %>%
+  ungroup()%>%
+  mutate(perc_score = (total_score/max(total_score))*100) %>%
+  mutate(plant_score = ((height_rank+duration_rank+part_rank)/max(total_score))*100)%>%
+  mutate(medicinal_score = ((trials_rank+activities_rank)/max(total_score))*100)%>%
+  mutate(see_score = ((products_rank+population_rank)/max(total_score))*100) %>%
+  select(c(8:14))
+
+
+write_csv(species_scores, "species_scores.csv")
+
 
 
 
 
 
 #_______________________________________________________________________________
-# 4. DATA VISUALIZATION AND SUMMARY
+# 5. DATA VISUALIZATION AND SUMMARY
 #_______________________________________________________________________________
+
+# Processing data for visualization
+# Convert to long format
+species_scores_long <- species_scores %>%
+  pivot_longer(
+    cols = c(plant_score, medicinal_score, see_score),
+    names_to = "score_category",
+    values_to = "score"
+  )
+
+# Setting up my theme parameters
+fig_theme <-   theme(
+  text = element_text(family = "Source sans pro", face = "plain"),
+  axis.ticks = element_line(linewidth = 0.2),
+  axis.line = element_line(linewidth = 0.2),
+  axis.text = element_text(size=10))
+
+
+
+
+
+
+
+
+# Figure: Weighted sum scores
+fig_weighted_sum<-
+  species_scores_long %>%
+  arrange(desc(perc_score)) %>%
+  slice(c(1:60))%>%
+  ggplot(aes(reorder(plant_name, score, sum), y = score, fill = score_category)) +
+  geom_col() +
+  coord_flip() +
+  labs(x = "Species", y = "Weighted sum score", fill = "Score category") +
+  scale_y_continuous(expand = c(0, 0)) +
+  theme_pubr() +
+  fig_theme
+fig_weighted_sum
+
+
+
+
+
+
+
+
+
+
+
 
 # Raw data summary
-## Create a boxplot of the raw data for each criteria. Create histograms for categorical data. 
+## Create a boxplot of the raw data for each criteria. Create histograms for categorical data:
+
 
 
 
@@ -159,6 +355,28 @@ decision_mat <- read_excel("Species_inclusion_exclusion.xlsx")%>%
 
 #---------------------------------------------------------
 # Individual weights
+
+## create a stacked bar plot of the aggregate weights
+fig_weight_collage <- 
+  agg_weight %>%
+  pivot_longer(cols = everything(), names_to = "atts", values_to = "value") %>%
+    mutate(scores = 1)%>%
+  mutate(atts = dict[atts])%>%                             #change the attribute codes to the actual names
+  ggplot(aes(x = scores, y = value, fill = atts))+
+  geom_col() +
+  scale_y_continuous(expand = c(0, 0)) +
+  coord_flip() +
+  labs(x = "", y = "Weights", fill = "Criteria")+
+  theme_pubr()+
+  fig_theme+
+  theme(axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.title.y = element_blank(),
+        axis.line.y = element_blank())
+
+
+
+fig_weight_collage
 ## Create a heatmap of the individual weights from all decision-makers.
 
 fig_ind_weight <-
@@ -171,7 +389,7 @@ fig_ind_weight <-
   labs(x = "Attributes", y = "Decision-makers", fill = "Weights")+
   theme_bw()+
   theme(axis.text=element_text(size=12))
-
+fig_ind_weight
 
 
 
@@ -189,7 +407,7 @@ fig_agg_weight <-
   labs(x = "Attributes", y = "Decision-makers", fill = "Weights")+
   theme_bw()+
   theme(axis.text=element_text(size=12))
-
+fig_agg_weight
 
 # Weights collage
 fig_weight_collage 
