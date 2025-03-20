@@ -14,6 +14,7 @@ librarian::shelf(tidyverse,
                  readxl,
                  sysfonts,
                  showtext,
+                 ggsci,
                  quiet = TRUE,
                  update_all = FALSE)
 
@@ -55,10 +56,12 @@ survey_data <- read_csv("raw_survey_data.csv")%>%
                 activities_population = 20,
                 products_population = 21
                 )%>%
-  mutate(across(everything(), as.numeric))
+  mutate(across(everything(), as.numeric))%>%
+  as.data.frame()
 
 
 head(survey_data)
+str(survey_data)
 
 survey_data$height_part <- as.numeric(survey_data$height_part)
 
@@ -81,33 +84,42 @@ dict <- c("height"     = "Plant height",
           "products"   = "Number of commercial products",
           "population" = "Population status")
 
-# Creating pairwise comparison matrices from the raw survey dataset. 
+# Creating pairwise comparison matrices from the raw survey dataset.
+#select only first row of the survey data
 AHP_data_mat <- ahp.mat(df = survey_data, atts, negconvert = TRUE) #This function also converts negative values to positive values  and converts negative to reciprocal values for the pairwise comparison matrices.
 
 
-# Display the first row of the pairwise comparison matrices
+
+# Display the first pairwise comparison matrix
 AHP_data_mat %>% head(1) %>% kable()
 
 
-# Compute the consistency ratio of the decision-makers
-ahp.cr(AHP_data_mat, atts, ri = NULL) %>% kable()
+# Compute the consistency ratio of the decision-makers; ri is from Saaty Table
+ahp.cr(AHP_data_mat, atts, ri = 1.32) %>% kable()
 
 
 
-# Compute the individual weights of the decision-makers, aggregated as geometric mean
+# Compute the weights of the individual decision-makers
 ind_weight <- ahp.indpref(AHP_data_mat, atts, method = "eigen")%>%
   round(3) %>% 
   rownames_to_column('ID') %>%
   as_tibble()
 kable(ind_weight)
 
-# compute the aggregated priorities of all decision-makers using the specified methods
+# compute the aggregated priorities of all decision-makers using the specified methods, aggregated as geometric means
 agg_weight <- ahp.aggpref(AHP_data_mat, atts, method = "eigen", aggmethod =  "geometric")%>%
   round(3) %>% 
   t()%>%
   as_tibble()
 kable(agg_weight)
 
+
+rowSums(agg_weight)
+
+#Normalise the weights such that the sum equals to 1
+agg_weight_norm <- agg_weight/sum(agg_weight)
+
+rowSums(agg_weight_norm)
 
 #_______________________________________________________________________________
 # 3. DECISION MATRIX IMPORT AND NORMALIZATION
@@ -147,7 +159,7 @@ bin_keys <- list(
   duration = c(0, 60, 120, 180, 240, Inf), # Duration in days
   trials = c(0, 20, 50, 100, 200, Inf), # Number of clinical trials
   activities = c(0, 75, 200, 400, 700, Inf), # Number of medicinal activities
-  products = c(0, 5, 10, 20, 40, Inf) # Number of commercial products
+  products = c(0, 50, 250, 750, 1500, Inf) # Number of commercial products
 )
 
 # Define which attributes should have reversed scoring (smaller is better)
@@ -161,13 +173,13 @@ part = c(
   "Aerial Parts" = 5, 
   "Whole Plant" = 5,
   "Stems" = 5,
-  "Fruit" = 4,
-  "Flowers" = 3,
-  "Seeds" = 2,
-  "Roots" = 1,
-  "Rhizome" = 1,
-  "Tuber" = 1,
-  "Bulb" = 1
+  "Rhizome" = 4,
+  "Tuber" = 4,
+  "Bulb" = 4,
+  "Roots" = 3,
+  "Fruit" = 2,
+  "Flowers" = 2,
+  "Seeds" = 1
 ),  
 population = c(
     "EN" = 5, # Endangered
@@ -230,16 +242,16 @@ weights_df[[1]] <- "Weights" # Set "Weights" label in the first column (species 
 
 
 
-# Map the weights from agg_weight to the corresponding columns in ranked_decision_mat
+# Map the weights from agg_weight_norm to the corresponding columns in ranked_decision_mat
 for (col_name in names(ranked_decision_mat)) {
   # Check if it's a rank column
   if (grepl("_rank$", col_name)) {
     # Extract the base attribute name by removing "_rank" suffix
     base_name <- gsub("_rank$", "", col_name)
     
-    # If the base attribute exists in agg_weight, add its value
-    if (base_name %in% names(agg_weight)) {
-      weights_df[[col_name]] <- as.numeric(agg_weight[[base_name]])
+    # If the base attribute exists in agg_weight_norm, add its value
+    if (base_name %in% names(agg_weight_norm)) {
+      weights_df[[col_name]] <- as.numeric(agg_weight_norm[[base_name]])
     }
   }
 }
@@ -303,7 +315,8 @@ fig_theme <-   theme(
   text = element_text(family = "Source sans pro", face = "plain"),
   axis.ticks = element_line(linewidth = 0.2),
   axis.line = element_line(linewidth = 0.2),
-  axis.text = element_text(size=10))
+  axis.text = element_text(size=10),
+  plot.margin = margin(5,15,5,5))
 
 
 
@@ -323,14 +336,11 @@ fig_weighted_sum<-
   labs(x = "Species", y = "Weighted sum score", fill = "Score category") +
   scale_y_continuous(expand = c(0, 0)) +
   theme_pubr() +
-  fig_theme
+  fig_theme+
+  theme(axis.text.y = element_text(face = "italic"))+
+  scale_fill_aaas(alpha = 0.75, guide = guide_legend(reverse=TRUE),
+                  labels = c("Medicinal", "Plant", "SEE"))
 fig_weighted_sum
-
-
-
-
-
-
 
 
 
