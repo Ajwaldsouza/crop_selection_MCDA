@@ -15,6 +15,7 @@ librarian::shelf(tidyverse,
                  sysfonts,
                  showtext,
                  ggsci,
+                 ggrain,
                  quiet = TRUE,
                  update_all = FALSE)
 
@@ -121,6 +122,16 @@ agg_weight_norm <- agg_weight/sum(agg_weight)
 
 rowSums(agg_weight_norm)
 
+
+
+
+# Normalise individual weights of each ID across rows from column 2 to 8, to 1
+ind_weight_norm <- ind_weight %>%
+  rowwise() %>%
+  mutate(across(2:8, ~ .x / sum(c_across(2:8)))) %>%
+  ungroup()
+
+
 #_______________________________________________________________________________
 # 3. DECISION MATRIX IMPORT AND NORMALIZATION
 #_______________________________________________________________________________
@@ -143,7 +154,7 @@ bin_continuous <- function(value, bins, reverse = TRUE) {
     # Smaller values get higher scores (5,4,3,2,1)
     cut(value, breaks = bins, labels = 5:1, include.lowest = TRUE)
   } else {
-    # Larger values get higher scores (1,2,3,4,5)
+    # Larger values get higher scores (1:5)
     cut(value, breaks = bins, labels = 1:5, include.lowest = TRUE)
   }
 }
@@ -301,16 +312,9 @@ write_csv(species_scores, "species_scores.csv")
 # 5. DATA VISUALIZATION AND SUMMARY
 #_______________________________________________________________________________
 
-# Processing data for visualization
-# Convert to long format
-species_scores_long <- species_scores %>%
-  pivot_longer(
-    cols = c(plant_score, medicinal_score, see_score),
-    names_to = "score_category",
-    values_to = "score"
-  )
+# Setting some theme elements before plotting
 
-# Setting up my theme parameters
+## Visual and font parameters
 fig_theme <-   theme(
   text = element_text(family = "Source sans pro", face = "plain"),
   axis.ticks = element_line(linewidth = 0.2),
@@ -321,12 +325,342 @@ fig_theme <-   theme(
 
 
 
+## Theme to erase all y axis elements
+theme_erase_y <-
+  theme(axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.title.y = element_blank(),
+        axis.line.y = element_blank())
+
+
+
+
+
+
+
+
+
+# FIGURE 1: RAW DATA
+
+# Fig 1a: Height
+
+fig_height <- decision_mat %>%
+  filter(!is.na(height)) %>% # First, clean the data by removing NA values
+  select(plant_name, height)%>%
+  ggplot( aes(x = "", y = height)) +
+  geom_rain(fill = "royalblue4", alpha = 0.7,
+  violin.args = list(alpha = .3, fill = "royalblue4", colour = NA),
+  boxplot.args = list(fill = NA, colour = "darkblue", alpha = 0.7),
+  point.args = list(size = 1.5, color = "darkblue")
+  ) +
+  # geom_jitter(width = 0.2, alpha = 0.5, color = "darkblue") +
+  scale_y_continuous(limit = c(0, 3.5),
+                    breaks = seq(0, 3.5, by = 0.5),
+                     expand = c(0, 0)) +
+  labs(title = "Plant height",
+       x = "",
+       y = "Plant height (m)") +
+  theme_pubr() +
+  fig_theme+
+  coord_flip()+
+  theme_erase_y
+
+fig_height
+
+
+# Fig 1b: Duration
+fig_duration <- decision_mat %>%
+  filter(!is.na(duration)) %>% # First, clean the data by removing NA values
+  select(plant_name, duration)%>%
+  ggplot( aes(x = "", y = duration)) +
+  geom_rain(fill = "royalblue4", alpha = 0.7,
+  violin.args = list(alpha = .3, fill = "royalblue4", colour = NA),
+  boxplot.args = list(fill = NA, colour = "darkblue", alpha = 0.7),
+  point.args = list(size = 1.5, color = "darkblue")
+  ) +
+  # geom_jitter(width = 0.2, alpha = 0.5, color = "darkblue") +
+    scale_y_continuous(limit = c(0, 2500),
+  breaks = seq(0, 2500, by = 500),
+    expand = c(0, 0)) +
+  labs(title = "Duration",
+       x = "",
+       y = "Duration to harvest (days)") +
+  theme_pubr() +
+  fig_theme+
+  coord_flip()+
+  theme_erase_y
+
+fig_duration
+
+
+# Fig 1c: Trials
+fig_trials <- decision_mat %>%
+  filter(!is.na(trials)) %>% # First, clean the data by removing NA values
+  select(plant_name, trials)%>%
+  ggplot( aes(x = "", y = trials)) +
+  geom_rain(fill = "royalblue4", alpha = 0.7,
+  violin.args = list(alpha = .3, fill = "royalblue4", colour = NA),
+  boxplot.args = list(fill = NA, colour = "darkblue", alpha = 0.7),
+  point.args = list(size = 1.5, color = "darkblue")
+  ) +
+  # geom_jitter(width = 0.2, alpha = 0.5, color = "darkblue") +
+  #   scale_y_continuous(limit = c(0, 2500),
+  # breaks = seq(0, 2500, by = 500),
+  #   expand = c(0, 0)) +
+  labs(title = "Trials",
+       x = "",
+       y = "Trials (#)") +
+  theme_pubr() +
+  fig_theme+
+  coord_flip()+
+  theme_erase_y
+
+fig_trials
+
+
+# Fig 1d: Activities
+fig_activities <- decision_mat %>%
+  filter(!is.na(activities)) %>% # First, clean the data by removing NA values
+  select(plant_name, activities)%>%
+  ggplot( aes(x = "", y = activities)) +
+  geom_rain(fill = "royalblue4", alpha = 0.7,
+  violin.args = list(alpha = .3, fill = "royalblue4", colour = NA),
+  boxplot.args = list(fill = NA, colour = "darkblue", alpha = 0.7),
+  point.args = list(size = 1.5, color = "darkblue")
+  ) +
+  # geom_jitter(width = 0.2, alpha = 0.5, color = "darkblue") +
+    scale_y_continuous(limit = c(0, 900),
+  breaks = seq(0, 900, by = 150),
+    expand = c(0, 0)) +
+  labs(title = "Activities",
+       x = "",
+       y = "Activities (#)") +
+  theme_pubr() +
+  fig_theme+
+  coord_flip()+
+  theme_erase_y
+
+fig_activities
+
+
+
+
+
+
+# Fig 1e: Commerical products
+fig_products <- decision_mat %>%
+  filter(!is.na(products)) %>% # First, clean the data by removing NA values
+  select(plant_name, products)%>%
+  ggplot( aes(x = "", y = products)) +
+  geom_rain(fill = "royalblue4", alpha = 0.7,
+  violin.args = list(alpha = .3, fill = "royalblue4", colour = NA),
+  boxplot.args = list(fill = NA, colour = "darkblue", alpha = 0.7),
+  point.args = list(size = 1.5, color = "darkblue")
+  ) +
+  # geom_jitter(width = 0.2, alpha = 0.5, color = "darkblue") +
+  scale_y_continuous(limit = c(0, 4000),
+  breaks = seq(0, 4000, by = 500),
+    expand = c(0, 0)) +
+  labs(title = "Distribution of Commercial Products by Species",
+       x = "",
+       y = "Number of Commercial Products") +
+  theme_pubr() +
+  fig_theme+
+  coord_flip()+
+  theme_erase_y
+
+fig_products
+
+
+
+# Fig 1f: Population status
+fig_part <- decision_mat %>%
+  filter(!is.na(part)) %>%  # Filter out NA values
+  count(part) %>%           # Count frequency of each category
+  # mutate(part = factor(part, 
+  #                           levels = c("CR", "EN", "VU", "NT", "LC", "DD"),
+  #                           labels = c("Critically Endangered", "Endangered", 
+  #                                      "Vulnerable", "Near Threatened", 
+  #                                      "Least Concern", "Data Deficient"))) %>%
+  ggplot(aes(x = part, y = n)) +
+  geom_col(alpha = 0.7) +
+  geom_text(aes(label = n), vjust = -0.5, size = 3.5) +  # Add count labels
+  labs(title = "IUCN Conservation Status Distribution",
+       x = "Conservation Status",
+       y = "Count") +
+  scale_y_continuous(expand = c(0, 0)) +
+  theme_pubr() +
+  fig_theme +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "none")
+
+# Display the plot
+fig_part
+
+
+
+# Fig 1g: Population status
+fig_population <- decision_mat %>%
+  filter(!is.na(population)) %>%  # Filter out NA values
+  count(population) %>%           # Count frequency of each category
+  mutate(population = factor(population, 
+                            levels = c("CR", "EN", "VU", "NT", "LC", "DD"),
+                            labels = c("Critically Endangered", "Endangered", 
+                                       "Vulnerable", "Near Threatened", 
+                                       "Least Concern", "Data Deficient"))) %>%
+  ggplot(aes(x = population, y = n)) +
+  geom_col(alpha = 0.7) +
+  geom_text(aes(label = n), vjust = -0.5, size = 3.5) +  # Add count labels
+  labs(title = "IUCN Conservation Status Distribution",
+       x = "Conservation Status",
+       y = "Count") +
+  scale_y_continuous(expand = c(0, 0)) +
+  theme_pubr() +
+  fig_theme +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "none")
+
+# Display the plot
+fig_population
+
+
+
+
+
+
+
+
+
+
+
+# FIGURE 1 COLLAGE
+# Combine raw data plots into one figure
+fig_1x <- ggarrange(fig_height, fig_duration, fig_trials, 
+                           fig_activities, fig_products, 
+                           labels = c("a", "b", "c", "d", "e"),
+                           ncol = 1, nrow = 5)
+fig_1x
+
+
+fig_1y <- ggarrange(fig_part, fig_population, 
+                           labels = c("f", "g"),
+                           ncol = 1, nrow = 2,
+                           align = "h")
+
+fig_1y
+
+
+
+fig_1 <- ggarrange(fig_1x, fig_1y, 
+                    ncol = 2, nrow = 1,
+                    common.legend = F, legend = "top", 
+                    widths = c(4, 3))
+fig_1
+
+# Save the combined figure if needed
+ggsave("fig_1.pdf", fig_1, width = 12, height = 8, dpi = 300)
+
+
+
+
+
+
+
+#_______
+
+# FIGURE 2: WEIGHTS
+
+
+## Aggregate weights
+fig_weight_agg <- 
+  agg_weight_norm %>%
+  pivot_longer(cols = everything(), names_to = "atts", values_to = "value") %>%
+    mutate(scores = 1)%>%
+  mutate(atts = dict[atts])%>%                             #change the attribute codes to the actual names
+  ggplot(aes(x = scores, y = value, fill = atts))+
+  geom_col() +
+  scale_y_continuous(expand = c(0, 0)) +
+  coord_flip() +
+  labs(x = "", y = "Normalized weightage", fill = "Criteria")+
+  theme_pubr()+
+  scale_fill_aaas(alpha = 0.75)+
+  fig_theme+
+  theme(axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.title.y = element_blank(),
+        axis.line.y = element_blank())
+
+
+
+fig_weight_agg
+
+
+
+
+
+## Create a heatmap of the individual weights from all decision-makers.
+
+fig_ind_weight <-
+  ind_weight_norm %>%
+  pivot_longer(cols = -ID, names_to = "atts", values_to = "value") %>% # convert to long format
+  mutate(atts = dict[atts])%>%
+  ggplot(aes(x = atts, y = ID, fill = value))+
+  geom_raster()+
+  scale_fill_gradient(low="white", high="royalblue4")+
+  scale_y_discrete(limits = rev(unique(ind_weight_norm$ID)))+
+  labs(x = "Criteria", y = "Decision-makers", fill = "Weights")+
+  theme_pubr()+
+  fig_theme+
+  theme(axis.text=element_text(size=12),
+  axis.text.x=element_text(angle=45, hjust=1))
+
+fig_ind_weight
+
+
+
+
+
+
+# Weights collage
+
+
+
+fig_2 <- ggarrange(fig_weight_agg, fig_ind_weight, 
+                    labels = c("a", "b"),
+                    ncol = 1, nrow = 2,
+                    common.legend = F, legend = "top", align = "v",
+                    heights = c(5, 15))
+
+fig_2
+
+
+showtext_auto()
+ggsave( "fig_2.pdf", fig_2, width = 10, height = 7.5, dpi = 300)
+
+
+
+
+
+#_______
+# FIGURE 3: WEIGHTED SUM SCORES
+
+# Processing data for visualization
+# Convert to long format
+species_scores_long <- species_scores %>%
+  pivot_longer(
+    cols = c(plant_score, medicinal_score, see_score),
+    names_to = "score_category",
+    values_to = "score"
+  )
+
+
+
 
 
 
 
 # Figure: Weighted sum scores
-fig_weighted_sum<-
+fig_weighted_sum <-
   species_scores_long %>%
   arrange(desc(perc_score)) %>%
   slice(c(1:60))%>%
@@ -345,88 +679,83 @@ fig_weighted_sum
 
 
 
-
-
-# Raw data summary
-## Create a boxplot of the raw data for each criteria. Create histograms for categorical data:
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#---------------------------------------------------------
-# Individual weights
-
-## create a stacked bar plot of the aggregate weights
-fig_weight_collage <- 
-  agg_weight %>%
-  pivot_longer(cols = everything(), names_to = "atts", values_to = "value") %>%
-    mutate(scores = 1)%>%
-  mutate(atts = dict[atts])%>%                             #change the attribute codes to the actual names
-  ggplot(aes(x = scores, y = value, fill = atts))+
-  geom_col() +
-  scale_y_continuous(expand = c(0, 0)) +
+fig_scores_plant <- 
+  species_scores %>%
+  select(plant_name, plant_score)%>%
+  arrange(desc(plant_score))%>%
+  slice(c(1:10))%>%
+  ggplot(aes(reorder(plant_name, plant_score, sum), y = plant_score)) +
+  geom_col(fill = "royalblue4") +
   coord_flip() +
-  labs(x = "", y = "Weights", fill = "Criteria")+
-  theme_pubr()+
+  labs(x = "Species", y = "Plant score") +
+  scale_y_continuous(expand = c(0, 0)) +
+  theme_pubr() +
   fig_theme+
-  theme(axis.text.y = element_blank(),
-        axis.ticks.y = element_blank(),
-        axis.title.y = element_blank(),
-        axis.line.y = element_blank())
+  theme(axis.text.y = element_text(face = "italic"))
+
+fig_scores_plant
 
 
 
-fig_weight_collage
-## Create a heatmap of the individual weights from all decision-makers.
+fig_scores_medicinal <- 
+  species_scores %>%
+  select(plant_name, medicinal_score)%>%
+  arrange(desc(medicinal_score))%>%
+  slice(c(1:10))%>%
+  ggplot(aes(reorder(plant_name, medicinal_score, sum), y = medicinal_score)) +
+  geom_col(fill = "royalblue4") +
+  coord_flip() +
+  labs(x = "", y = "Medicinal score") +
+  scale_y_continuous(expand = c(0, 0)) +
+  theme_pubr() +
+  fig_theme+
+  theme(axis.text.y = element_text(face = "italic"))
 
-fig_ind_weight <-
-  ind_weight %>%
-  pivot_longer(cols = -ID, names_to = "atts", values_to = "value") %>% # convert to long format
-  mutate(atts = dict[atts])%>%
-  ggplot(aes(x = atts, y = ID, fill = value))+
-  geom_raster()+
-  scale_fill_gradient(low="white", high="royalblue4")+
-  labs(x = "Attributes", y = "Decision-makers", fill = "Weights")+
-  theme_bw()+
-  theme(axis.text=element_text(size=12))
-fig_ind_weight
-
-
-
+fig_scores_medicinal
 
 
-# Aggregated weights
-fig_agg_weight <- 
-  agg_weight %>%
-  pivot_longer(cols = everything(), names_to = "atts", values_to = "value")%>% # convert to long format
-  mutate(atts = dict[atts])%>%                             #change the attribute codes to the actual names
-  mutate(ID = 1)%>%                                        #create a dummy ID column
-  ggplot(aes(x = atts, y = ID, fill = value))+
-  geom_raster()+
-  scale_fill_gradient(low="white", high="royalblue4")+
-  labs(x = "Attributes", y = "Decision-makers", fill = "Weights")+
-  theme_bw()+
-  theme(axis.text=element_text(size=12))
-fig_agg_weight
 
-# Weights collage
-fig_weight_collage 
+fig_scores_see <- 
+  species_scores %>%
+  select(plant_name, see_score)%>%
+  arrange(desc(see_score))%>%
+  slice(c(1:10))%>%
+  ggplot(aes(reorder(plant_name, see_score, sum), y = see_score)) +
+  geom_col(fill = "royalblue4") +
+  coord_flip() +
+  labs(x = "", y = "SEE score") +
+  scale_y_continuous(expand = c(0, 0)) +
+  theme_pubr() +
+  fig_theme+
+  theme(axis.text.y = element_text(face = "italic"))
+
+fig_scores_see
 
 
+
+# fig 3 collage
+fig_3x <- ggarrange(fig_scores_plant, fig_scores_medicinal, fig_scores_see, 
+                    labels = c( "b", "c", "d"),
+                    ncol = 3, nrow = 1,
+                    common.legend = F, legend = "top", align = "h")
+
+fig_3x
+
+
+fig_3 <- ggarrange(fig_weighted_sum, fig_3x, 
+                    labels = c("a", ""),
+                    ncol = 1, nrow = 2,
+                    common.legend = F, legend = "top", align = "h",
+                    heights = c(7, 5))
+fig_3
+
+
+showtext_auto()
+ggsave("fig_3.pdf", fig_3, width = 10, height = 8.5, dpi = 300)
 
 
 #---------------------------------------------------------
-# Species ranking
+
 
 
 
