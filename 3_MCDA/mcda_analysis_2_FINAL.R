@@ -181,16 +181,16 @@ reverse_scoring <- c("height", "duration")  # For these, smaller values get high
 cat_mappings <- list(
 part = c(
   "Leaves" = 5,
-  "Aerial Parts" = 5, 
-  "Whole Plant" = 5,
-  "Stems" = 5,
-  "Rhizome" = 4,
-  "Tuber" = 4,
-  "Bulb" = 4,
-  "Roots" = 3,
-  "Fruit" = 2,
-  "Flowers" = 2,
-  "Seeds" = 1
+  "Aerial Parts" = 5,
+  "Stems" = 5, 
+  "Whole Plant" = 4,
+  "Flowers" = 3,
+  "Fruit" = 3,
+  "Seeds" = 2,
+  "Rhizome" = 1,
+  "Tuber" = 1,
+  "Bulb" = 1,
+  "Roots" = 1
 ),  
 population = c(
     "EN" = 5, # Endangered
@@ -312,6 +312,29 @@ write_csv(species_scores, "species_scores.csv")
 # 5. DATA VISUALIZATION AND SUMMARY
 #_______________________________________________________________________________
 
+# Summary Table of raw data
+
+
+summary_table <- decision_mat %>%
+  select(height, duration, trials, activities, products) %>%
+  pivot_longer(cols = everything(), names_to = "variable", values_to = "value") %>%
+  group_by(variable) %>%
+  summarise(
+    mean = mean(value, na.rm = TRUE),
+    median = median(value, na.rm = TRUE),
+    min = min(value, na.rm = TRUE),
+    q1 = quantile(value, 0.25, na.rm = TRUE),
+    q3 = quantile(value, 0.75, na.rm = TRUE),
+    max = max(value, na.rm = TRUE)
+  )
+summary_table
+
+
+
+
+
+
+
 # Setting some theme elements before plotting
 
 ## Visual and font parameters
@@ -331,7 +354,6 @@ theme_erase_y <-
         axis.ticks.y = element_blank(),
         axis.title.y = element_blank(),
         axis.line.y = element_blank())
-
 
 
 
@@ -473,7 +495,7 @@ fig_products
 
 
 
-# Fig 1f: Population status
+# Fig 1f: Parts of use
 fig_part <- decision_mat %>%
   filter(!is.na(part)) %>%  # Filter out NA values
   count(part) %>%           # Count frequency of each category
@@ -488,7 +510,7 @@ fig_part <- decision_mat %>%
   labs(title = "IUCN Conservation Status Distribution",
        x = "Conservation Status",
        y = "Count") +
-  scale_y_continuous(expand = c(0, 0)) +
+  scale_y_continuous(expand = c(0, 0), limit = c(0,25)) +
   theme_pubr() +
   fig_theme +
   theme(axis.text.x = element_text(angle = 45, hjust = 1),
