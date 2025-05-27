@@ -79,7 +79,7 @@ survey_data$height_part <- as.numeric(survey_data$height_part)
 # The attributes to be compared are the following:
 atts <- c("height", "part", "duration", "trials", "activities", "products", "population")
 dict <- c("height"     = "Plant height",
-          "part"       = "Part of use",
+          "part"       = "Medicinal tissue",
           "duration"   = "Duration to harvest",
           "trials"     = "Clinical trials",
           "activities" = "Medicinal activities",
@@ -599,7 +599,7 @@ fig_part <- decision_mat %>%
   ggplot(aes(x = reorder(part, -n), y = n)) +
   geom_col(fill = "royalblue4", alpha = 0.85) +
   geom_text(aes(label = n), vjust = -0.5, size = 3.5) +  # Add count labels
-  labs(title = "Parts of use",
+  labs(title = "Medicinal tissue",
        x = "",
        y = "Species") +
   scale_y_continuous(expand = c(0, 0), limit = c(0,25)) +
