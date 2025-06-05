@@ -17,6 +17,7 @@ librarian::shelf(tidyverse,
                  ggsci,
                  ggrain,
                  tidyplots,
+                 cowplot,
                  quiet = TRUE,
                  update_all = FALSE)
 
@@ -160,6 +161,12 @@ decision_mat <- decision_mat %>%
   filter(height < 4)
 
 
+#combining the clinical trials from us and from who into one column
+decision_mat <- decision_mat %>%
+  mutate(trials = trials_us + trials_who) %>%
+  select(-c(trials_us, trials_who)) # Remove the original columns
+
+
 
 # Convert raw data to numeric 5-point scale
 
@@ -296,7 +303,7 @@ weighted_decision_mat <- rbind(weights_df, ranked_decision_mat)
 # Calculate the weighted values by multiplying each value by its corresponding weight
 weighted_values_mat <- weighted_decision_mat %>%
   slice(-1) %>%
-  mutate(species_name = .[[1]], species_family = .[[2]]) %>%
+  mutate(species_name = .[[1]]) %>%
   select(ends_with("_rank")) %>%
   mutate(across(everything(), ~as.numeric(.x) * as.numeric(weighted_decision_mat[1, cur_column()]))) %>%
   bind_cols(weighted_decision_mat[-1, 1:2]) %>%
@@ -325,77 +332,377 @@ write_csv(species_scores, "species_scores.csv")
 # 5. SENSITIVITY ANALYSIS
 #_______________________________________________________________________________
 
-# Sensitivity Analysis: Varying weights function
-sensitivity_analysis <- function(criterion, weight_variation, weights_data = agg_weight_norm, species_data = weighted_values_mat) {
+# Function to perform sensitivity analysis for a given criterion and weight change percentage
+
+
+sensitivity_analysis <- function(criterion, weight_percentage, weights_data = agg_weight_norm, species_data = weighted_values_mat) {
   # Validate that criterion exists in weights
   if (!criterion %in% names(weights_data)) {
     stop(paste("Criterion", criterion, "not found in weights data"))
   }
   
+  # Calculate the actual weight change based on percentage
+  original_weight <- weights_data[[criterion]]
+  weight_change <- original_weight * (weight_percentage/100)
+  
+  # Create results containers
+  plus_result <- minus_result <- list()
+  
+  # INCREASED WEIGHT ANALYSIS
   # Make a copy of the original weights
-  new_weights <- weights_data
-  
-  # Adjust weight for specified criterion
-  new_weights[[criterion]] <- new_weights[[criterion]] + weight_variation
-  
-  # Ensure weights don't go negative
-  if (new_weights[[criterion]] < 0) {
-    warning("Weight adjustment resulted in negative value, setting to 0")
-    new_weights[[criterion]] <- 0
-  }
-  
+  plus_weights <- weights_data
+  # Adjust weight up by percentage
+  plus_weights[[criterion]] <- plus_weights[[criterion]] + weight_change
   # Normalize weights to sum to 1
-  new_weights <- new_weights / sum(new_weights)
+  plus_weights <- plus_weights / sum(plus_weights)
   
-  # Create a copy of the original data
-  result <- species_data
-  
-  # Recalculate weighted values using new weights
-  for (col in names(result)) {
+  # Create a copy of the original data for plus analysis
+  plus_data <- species_data
+  # Recalculate weighted values using increased weights
+  for (col in names(plus_data)) {
     if (grepl("_rank$", col)) {
       base_name <- gsub("_rank$", "", col)
-      if (base_name %in% names(new_weights)) {
-        result[[col]] <- as.numeric(result[[col]]) * as.numeric(new_weights[[base_name]])
+      if (base_name %in% names(plus_weights)) {
+        plus_data[[col]] <- as.numeric(plus_data[[col]]) * as.numeric(plus_weights[[base_name]])
       }
     }
   }
   
-  # Calculate new total scores
-  result <- result %>%
+  # Calculate new total scores for increased weights
+  plus_result <- plus_data %>%
+    rowwise() %>%
+    mutate(total_score_plus = sum(c_across(ends_with("_rank")), na.rm = TRUE)) %>%
+    ungroup() %>%
+    mutate(perc_score_plus = (total_score_plus/max(total_score_plus))*100) %>%
+    arrange(desc(total_score_plus))
+  # Update rankings
+  plus_result$rank_plus <- rank(-plus_result$total_score_plus)
+  
+  # DECREASED WEIGHT ANALYSIS
+  # Make a copy of the original weights
+  minus_weights <- weights_data
+  # Adjust weight down by percentage
+  minus_weights[[criterion]] <- minus_weights[[criterion]] - weight_change
+  # Ensure weights don't go negative
+  if (minus_weights[[criterion]] < 0) {
+    warning("Weight adjustment resulted in negative value, setting to 0")
+    minus_weights[[criterion]] <- 0
+  }
+  # Normalize weights to sum to 1
+  minus_weights <- minus_weights / sum(minus_weights)
+  
+  # Create a copy of the original data for minus analysis
+  minus_data <- species_data
+  # Recalculate weighted values using decreased weights
+  for (col in names(minus_data)) {
+    if (grepl("_rank$", col)) {
+      base_name <- gsub("_rank$", "", col)
+      if (base_name %in% names(minus_weights)) {
+        minus_data[[col]] <- as.numeric(minus_data[[col]]) * as.numeric(minus_weights[[base_name]])
+      }
+    }
+  }
+  
+  # Calculate new total scores for decreased weights
+  minus_result <- minus_data %>%
+    rowwise() %>%
+    mutate(total_score_minus = sum(c_across(ends_with("_rank")), na.rm = TRUE)) %>%
+    ungroup() %>%
+    mutate(perc_score_minus = (total_score_minus/max(total_score_minus))*100) %>%
+    arrange(desc(total_score_minus))
+  # Update rankings
+  minus_result$rank_minus <- rank(-minus_result$total_score_minus)
+  
+  # ORIGINAL ANALYSIS (for comparison)
+  original_result <- species_data %>%
     rowwise() %>%
     mutate(total_score = sum(c_across(ends_with("_rank")), na.rm = TRUE)) %>%
     ungroup() %>%
     mutate(perc_score = (total_score/max(total_score))*100) %>%
     arrange(desc(total_score))
+  original_result$rank <- rank(-original_result$total_score)
   
-  # Update rankings
-  result$rank <- rank(-result$total_score)
+  # Combine results
+  combined_results <- original_result %>%
+    select(plant_name, total_score, perc_score, rank) %>%
+    left_join(
+      plus_result %>% select(plant_name, total_score_plus, perc_score_plus, rank_plus),
+      by = "plant_name"
+    ) %>%
+    left_join(
+      minus_result %>% select(plant_name, total_score_minus, perc_score_minus, rank_minus),
+      by = "plant_name"
+    ) %>%
+    mutate(
+      rank_change_plus = rank - rank_plus,
+      rank_change_minus = rank - rank_minus
+    )
   
-  return(result)
+  return(combined_results)
 }
 
 
-# apply the function to do sensitivity analysis at 10% for height
 
 
-# Example: Increase weight of "height" by 0.05
-height_sensitivity <- sensitivity_analysis(criterion = "height", weight_variation = -0.05)
 
-# Example: Decrease weight of "activities" by 0.1
-activities_sensitivity <- sensitivity_analysis(criterion = "activities", weight_variation = -0.1)
 
-# Compare original rankings with sensitivity analysis results
-comparison <- data.frame(
-  species_name = species_scores$plant_name,
-  original_score = species_scores$total_score,
-  original_rank = rank(-species_scores$total_score),
-  height_adjusted_score = height_sensitivity$total_score,
-  height_adjusted_rank = height_sensitivity$rank,
-  rank_change_height = rank(-species_scores$total_score) - height_sensitivity$rank
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+sensitivity_analysis_2 <- function(criterion, weight_percentage, weights_data = agg_weight_norm, species_data = weighted_values_mat, 
+                                   decision_mat = ranked_decision_mat) {
+  # Validate that criterion exists in weights
+  if (!criterion %in% names(weights_data)) {
+    stop(paste("Criterion", criterion, "not found in weights data"))
+  }
+  
+  # Calculate the actual weight change based on percentage
+  original_weight <- weights_data[[criterion]]
+  weight_change <- original_weight * (weight_percentage/100)
+  
+  # Create results containers
+  plus_result <- minus_result <- list()
+  
+  # INCREASED WEIGHT ANALYSIS
+  # Make a copy of the original weights
+  plus_weights <- weights_data
+  # Adjust weight up by percentage
+  plus_weights[[criterion]] <- plus_weights[[criterion]] + weight_change
+  # Normalize weights to sum to 1
+  plus_weights <- plus_weights / sum(plus_weights)
+  
+  # Create a plus weights dataframe with the same structure as ranked_decision_mat
+  weights_df_plus <- data.frame(matrix(NA, nrow = 1, ncol = ncol(decision_mat)))
+  colnames(weights_df_plus) <- colnames(decision_mat)
+  weights_df_plus[[1]] <- "Weights" # Set "Weights" label in the first column (species name)
+
+  # Map the weights from agg_weight_norm to the corresponding columns in decision_mat
+  for (col_name in names(decision_mat)) {
+  # Check if it's a rank column
+  if (grepl("_rank$", col_name)) {
+    # Extract the base attribute name by removing "_rank" suffix
+    base_name <- gsub("_rank$", "", col_name)
+    
+    # If the base attribute exists in plus_weights, add its value
+    if (base_name %in% names(plus_weights)) {
+      weights_df_plus[[col_name]] <- as.numeric(plus_weights[[base_name]])
+    }
+  }
+  }
+
+  # Combine the weights row with the original data
+  weighted_decision_mat_plus <- rbind(weights_df_plus, decision_mat)
+
+  # Create a copy of the original data for plus analysis
+  plus_data <- weighted_decision_mat_plus %>%
+    slice(-1) %>%
+    mutate(species_name = .[[1]]) %>%
+    select(ends_with("_rank")) %>%
+    mutate(across(everything(), ~as.numeric(.x) * as.numeric(weighted_decision_mat_plus[1, cur_column()]))) %>%
+    bind_cols(weighted_decision_mat_plus[-1, 1:2]) %>%
+    select(1:2, everything())
+  
+  # Calculate new total scores for increased weights
+  plus_result <- plus_data %>%
+    rowwise() %>%
+    mutate(total_score_plus = sum(c_across(ends_with("_rank")), na.rm = TRUE)) %>%
+    ungroup() %>%
+    # mutate(perc_score_plus = (total_score_plus/max(total_score_plus))*100) %>%
+    arrange(desc(total_score_plus))
+  # Update rankings
+  plus_result$rank_plus <- rank(-plus_result$total_score_plus)
+  
+  # DECREASED WEIGHT ANALYSIS
+  # Make a copy of the original weights
+  minus_weights <- weights_data
+  # Adjust weight down by percentage
+  minus_weights[[criterion]] <- minus_weights[[criterion]] - weight_change
+  # Ensure weights don't go negative
+  if (minus_weights[[criterion]] < 0) {
+    warning("Weight adjustment resulted in negative value, setting to 0")
+    minus_weights[[criterion]] <- 0
+  }
+  # Normalize weights to sum to 1
+  minus_weights <- minus_weights / sum(minus_weights)
+  
+  # Create a plus weights dataframe with the same structure as ranked_decision_mat
+  weights_df_minus <- data.frame(matrix(NA, nrow = 1, ncol = ncol(decision_mat)))
+  colnames(weights_df_minus) <- colnames(decision_mat)
+  weights_df_minus[[1]] <- "Weights" # Set "Weights" label in the first column (species name)
+
+  # Map the weights from weights_df_minus to the corresponding columns in decision_mat
+  for (col_name in names(decision_mat)) {
+  # Check if it's a rank column
+  if (grepl("_rank$", col_name)) {
+    # Extract the base attribute name by removing "_rank" suffix
+    base_name <- gsub("_rank$", "", col_name)
+    
+    # If the base attribute exists in minus_weights, add its value
+    if (base_name %in% names(minus_weights)) {
+      weights_df_minus[[col_name]] <- as.numeric(minus_weights[[base_name]])
+    }
+  }
+  }
+
+  # Combine the weights row with the original data
+  weighted_decision_mat_minus <- rbind(weights_df_minus, decision_mat)
+
+  # Create a copy of the original data for minus analysis
+  minus_data <- weighted_decision_mat_minus %>%
+    slice(-1) %>%
+    mutate(species_name = .[[1]]) %>%
+    select(ends_with("_rank")) %>%
+    mutate(across(everything(), ~as.numeric(.x) * as.numeric(weighted_decision_mat_minus[1, cur_column()]))) %>%
+    bind_cols(weighted_decision_mat_minus[-1, 1:2]) %>%
+    select(1:2, everything())
+
+  
+  # Calculate new total scores for decreased weights
+  minus_result <- minus_data %>%
+    rowwise() %>%
+    mutate(total_score_minus = sum(c_across(ends_with("_rank")), na.rm = TRUE)) %>%
+    ungroup() %>%
+    # mutate(perc_score_minus = (total_score_minus/max(total_score_minus))*100) %>%
+    arrange(desc(total_score_minus))
+  # Update rankings
+  minus_result$rank_minus <- rank(-minus_result$total_score_minus)
+  
+  # ORIGINAL ANALYSIS (for comparison)
+  original_result <- species_data %>%
+    rowwise() %>%
+    mutate(total_score = sum(c_across(ends_with("_rank")), na.rm = TRUE)) %>%
+    ungroup() %>%
+    mutate(perc_score = (total_score/max(total_score))*100) %>%
+    arrange(desc(total_score))
+  original_result$rank <- rank(-original_result$total_score)
+  
+  # Combine results
+  combined_results <- original_result %>%
+    select(plant_name, total_score, perc_score, rank) %>%
+    left_join(
+      plus_result %>% select(plant_name, total_score_plus, rank_plus),
+      by = "plant_name"
+    ) %>%
+    left_join(
+      minus_result %>% select(plant_name, total_score_minus, rank_minus),
+      by = "plant_name"
+    ) %>%
+    mutate(
+      perc_score_minus = (total_score_minus/max(total_score_minus))*100,
+      perc_score_plus = (total_score_plus/max(total_score_plus))*100) %>%
+    mutate(
+      rank_change_plus = rank - rank_plus,
+      rank_change_minus = rank - rank_minus
+    )%>%
+    # add a c0loumn that calculates the total score change in percentage
+    mutate(
+      !!paste0("total_score_change_", criterion) := (abs(perc_score - perc_score_plus)+
+                              abs(perc_score - perc_score_minus))
+                              )
+
+  
+  return(combined_results)
+}
+
+sensitivity_analysis_2("height", 10)
+
+
+
+# CONDUCT SENSITIVITY ANALYSIS FOR EACH CRITERION IN A SINGLE LOOP
+# This will create separate dataframes for each criterion with sensitivity results
+
+# Define criteria names
+criteria_names <- c("height", "part", "duration", "trials", "activities", "products", "population")
+
+# Create a list to store sensitivity results
+sensitivity_results <- list()
+
+# Loop through each criterion and perform sensitivity analysis
+for (criterion in criteria_names) {
+  # Perform sensitivity analysis and assign to separate dataframes
+  assign(paste0("sensitivity_", criterion), sensitivity_analysis_2(criterion, 10))
+}
+
+
+# View the results of each sensitivity analysis
+View(sensitivity_height)
+View(sensitivity_part)
+View(sensitivity_duration)
+View(sensitivity_trials)
+View(sensitivity_activities)
+View(sensitivity_products)
+View(sensitivity_population)
+
+
+
+
+# Total score change for each species
+# bind all sensitivity results sid-byside, matching the plant names
+total_score_change <- sensitivity_height %>%
+  select(plant_name, total_score_change_height) %>%
+  left_join(sensitivity_part %>% select(plant_name, total_score_change_part), by = "plant_name") %>%
+  left_join(sensitivity_duration %>% select(plant_name, total_score_change_duration), by = "plant_name") %>%
+  left_join(sensitivity_trials %>% select(plant_name, total_score_change_trials), by = "plant_name") %>%
+  left_join(sensitivity_activities %>% select(plant_name, total_score_change_activities), by = "plant_name") %>%
+  left_join(sensitivity_products %>% select(plant_name, total_score_change_products), by = "plant_name") %>%
+  left_join(sensitivity_population %>% select(plant_name, total_score_change_population), by = "plant_name")%>%
+  mutate(total_score_change = rowSums(select(., starts_with("total_score_change_")), na.rm = TRUE))
+
+
+
+
+
+
+
+
+
+# Calculate the total sum of score changes for each criterion
+total_score_change_summary <- total_score_change %>%
+  summarise(across(starts_with("total_score_change_"), \(x) sum(x, na.rm = TRUE))) %>%
+  pivot_longer(cols = everything(), names_to = "criterion", values_to = "total_change") %>%
+  mutate(criterion = gsub("total_score_change_", "", criterion)) %>%
+  arrange(desc(total_change))
+
+
+
+
+
+
+
+
+
+
+# Plot the total score change for the top 10 and bottom 10 species separately
+# Select top and bottom 10 species based on total score change
+most_sensitive_species <- total_score_change %>%
+  arrange(desc(total_score_change)) %>%
+  slice(1:10)
+least_sensitive_species <- total_score_change %>%
+  arrange(total_score_change) %>%
+  slice(1:10)
+# Combine top and bottom species into one dataframe for plotting
+sensitivity_plot_data <- bind_rows(
+  top_10_species %>% mutate(group = "Most sensitive"),
+  bottom_10_species %>% mutate(group = "Least sensitive")
 )
-
-
-
 
 
 
@@ -406,8 +713,6 @@ comparison <- data.frame(
 #_______________________________________________________________________________
 
 # Summary Table of raw data
-
-
 summary_table <- decision_mat %>%
   select(height, duration, trials, activities, products) %>%
   pivot_longer(cols = everything(), names_to = "variable", values_to = "value") %>%
@@ -652,14 +957,14 @@ fig_population
 # Combine raw data plots into one figure
 fig_1x <- ggarrange(fig_height, fig_duration, fig_trials, 
                            fig_activities, fig_products, 
-                           labels = c("a", "b", "c", "d", "e"),
+                           labels = c("A", "B", "C", "D", "E"),
                            ncol = 1, nrow = 5,
                            align = "v")
 fig_1x
 
 
 fig_1y <- ggarrange(fig_part, fig_population, 
-                           labels = c("f", "g"),
+                           labels = c("F", "G"),
                            ncol = 1, nrow = 2,
                            align = "h")
 
@@ -722,31 +1027,6 @@ ggsave("fig_1.pdf", fig_1, width = 11, height = 8, dpi = 300)
 
 
 
-fig_weight_agg <- 
-      agg_weight_norm %>%
-      pivot_longer(cols = everything(), names_to = "atts", values_to = "value") %>%
-      mutate(scores = 1)%>%
-      mutate(atts = dict[atts])%>%  #change the attribute codes to the actual names
-      group_by(scores) %>%
-      arrange(value) %>%  
-      mutate(atts = factor(atts, levels = atts)) %>%
-      mutate(label_y = cumsum(value) - 0.5*value) %>%
-      ungroup() %>%
-      ggplot(aes(x = scores, y = value, fill = atts))+
-      geom_col(position = "stack") +
-      geom_text(aes(y = label_y, label = sprintf("%.2f", value)), color = "black", size = 3) + # Added this line for labels
-      scale_y_continuous(expand = c(0, 0), breaks = seq(0,1,by = 0.2)) +
-      coord_flip() +
-      labs(x = "", y = "Weightage", fill = "Criteria")+
-      theme_pubr()+
-      scale_fill_aaas(alpha = 0.75)+
-      fig_theme+
-      theme(axis.text.y = element_blank(),
-            axis.ticks.y = element_blank(),
-            axis.title.y = element_blank(),
-            axis.line.y = element_blank(),
-            plot.margin = margin(5, 10, 15, 5))
-fig_weight_agg
 
 
 
@@ -811,7 +1091,7 @@ fig_ind_weight
 
 # Weights collage
 fig_2x <- ggarrange(fig_weight_range, fig_ind_weight, 
-                    labels = c("b", "c"),
+                    labels = c("B", "C"),
                     ncol = 2, nrow = 1,
                     common.legend = F, legend = "right", align = "h",
                     widths = c(5, 7))
@@ -819,7 +1099,7 @@ fig_2x <- ggarrange(fig_weight_range, fig_ind_weight,
 fig_2x
 
 fig_2 <- ggarrange(fig_weight_agg, fig_2x, 
-                    labels = c("a", ""),
+                    labels = c("A", ""),
                     ncol = 1, nrow = 2,
                     common.legend = F, legend = "top", align = "v",
                     heights = c(5, 15))
@@ -834,7 +1114,7 @@ ggsave( "fig_2.pdf", fig_2, width = 10, height = 7.5, dpi = 300)
 
 
 
-#_______
+#______________________________________________________________________________
 # FIGURE 3: WEIGHTED SUM SCORES
 
 # Processing data for visualization
@@ -935,7 +1215,7 @@ fig_scores_see
 
 # fig 3 collage
 fig_3x <- ggarrange(fig_scores_plant, fig_scores_medicinal, fig_scores_see, 
-                    labels = c( "b", "c", "d"),
+                    labels = c( "B", "C", "D"),
                     ncol = 3, nrow = 1,
                     common.legend = F, legend = "top", align = "h")
 
@@ -943,7 +1223,7 @@ fig_3x
 
 
 fig_3 <- ggarrange(fig_weighted_sum, fig_3x, 
-                    labels = c("a", ""),
+                    labels = c("A", ""),
                     ncol = 1, nrow = 2,
                     common.legend = F, legend = "top", align = "h",
                     heights = c(7, 5))
@@ -957,14 +1237,232 @@ ggsave("fig_3.pdf", fig_3, width = 10, height = 8.5, dpi = 300)
 #---------------------------------------------------------
 
 
+#_________________________________________________________
+# FIGURE 4: SENSITIVITY ANALYSIS
+
+
+  # Create a function to plot sensitivity analysis results
+  plot_sensitivity <- function(sensitivity_data, criterion_name, top_n = 20) {
+    sensitivity_data %>%
+      slice(1:top_n) %>%
+      ggplot(aes(x = reorder(plant_name, perc_score))) +
+      coord_flip() +
+      geom_segment( aes(x= plant_name, y=perc_score, yend=perc_score_plus), color="#4FAE62", linewidth = 4) +
+      geom_segment( aes(x= plant_name, y=perc_score, yend=perc_score_minus), color="#C02D45", linewidth = 4) +
+      geom_point(aes(y = perc_score), color = "black", size = 2.5) +
+      labs(
+        # title = paste("Sensitivity Analysis:", criterion_name),
+        x = "Species",
+        y = "Weighted Score (%)",
+        # subtitle = "Green: +10% weight, Red: -10% weight, Black dot: Original"
+      ) +
+      # Add legend annotations
+      annotate("text", x = 20, y = 86, 
+             label = paste(criterion_name),
+             hjust = 0, size = 4, color = "black") +
+      theme_pubr() +
+      theme(
+        text = element_text(family = "Source sans pro", face = "plain"),
+        axis.ticks = element_line(linewidth = 0.2),
+        axis.ticks.length.y = unit(-0.15, "cm"),
+        axis.line = element_line(linewidth = 0.2),
+        axis.text = element_text(size=11),
+        plot.margin = margin(5,15,5,5),
+        axis.text.y = element_text(face = "italic", size = 10),
+        plot.title = element_text(size = 12),
+        plot.subtitle = element_text(size = 10),
+        axis.title.y = element_blank()
+        )+
+        scale_y_continuous(limits = c(85, 100.25),
+                           breaks = seq(75, 100, by = 5),
+                           expand = c(0, 0))
+  }
+
+plot_sensitivity(sensitivity_height, "Height")
+plot_sensitivity(sensitivity_part, "Part of Use")
+plot_sensitivity(sensitivity_duration, "Duration")
+plot_sensitivity(sensitivity_trials, "Trials")
+plot_sensitivity(sensitivity_activities, "Activities")
+plot_sensitivity(sensitivity_products, "Products")
+plot_sensitivity(sensitivity_population, "Population Status")
+
+
+# Plot the total score change for top and bottom species
+total_sensitivity_plot <- sensitivity_plot_data %>%
+  ggplot(aes(x = reorder(plant_name, -total_score_change), y = total_score_change, fill = group)) +
+  geom_col(position = "dodge", alpha = 0.8) +
+  coord_flip() +
+  geom_vline(xintercept = 10.5, linetype = "dashed", color = "grey") +
+  labs(fill = "Sensitivity Group",
+       y = "Total Score Change (%)") +
+  scale_fill_manual(values = c("Most sensitive" = "firebrick3", "Least sensitive" = "royalblue4")) +
+      theme_pubr() +
+      theme(
+        text = element_text(family = "Source sans pro", face = "plain"),
+        axis.ticks = element_line(linewidth = 0.2),
+        axis.ticks.length.y = unit(-0, "cm"),
+        axis.line = element_line(linewidth = 0.2),
+        axis.text = element_text(size=11),
+        plot.margin = margin(5,15,5,5),
+        axis.text.y = element_text(face = "italic", size = 10),
+        plot.title = element_text(size = 12),
+        plot.subtitle = element_text(size = 10),
+        axis.title.y = element_blank()
+        )+
+  theme(
+        legend.position = c(0.75, 0.85),
+        legend.direction = "vertical",  # Arrange legend items horizontally
+        # legend.justification = c(1, 1),   # Anchor point at the top-right of the legend box
+        # legend.background = element_rect(fill = "white", color = NA, alpha = 0.7),  # Semi-transparent background
+        legend.margin = margin(2, 2, 2, 2),  # Small margin around legend
+        legend.key.size = unit(0.99, "lines"),  # Slightly smaller legend keys
+        legend.title = element_text(size = 10),
+    )+
+  scale_y_continuous(limits = c(0, 15),
+                    breaks = seq(0, 15, by = 5),
+                    expand = c(0, 0))
+
+total_sensitivity_plot
+
+
+# Combine all sensitivity plots into one figure using plot_grid
+ plot_sensitivity_fig <- 
+  plot_grid(
+    plot_sensitivity(sensitivity_height, "Height")+
+      annotate("segment", x = 18, y = 89, xend = 18, yend = 91, 
+           color = "#4FAE62", linewidth = 3) +
+      annotate("segment", x = 18, y = 86, xend = 18, yend = 88, 
+           color = "#C02D45", linewidth = 3) +
+      annotate("text", x = 19, y = 89, label = "+10% weight", 
+           hjust = 0, size = 3, color = "#4FAE62") +
+      annotate("text", x = 19, y = 86, label = "-10% weight", 
+           hjust = 0, size = 3, color = "#C02D45"),
+    plot_sensitivity(sensitivity_part, "Part of Use"),
+    plot_sensitivity(sensitivity_duration, "Duration"),
+    plot_sensitivity(sensitivity_trials, "Trials"),
+    plot_sensitivity(sensitivity_activities, "Activities"),
+    plot_sensitivity(sensitivity_products, "Products"),
+    plot_sensitivity(sensitivity_population, "Population Status"),
+    total_sensitivity_plot,
+    ncol = 2, labels = "AUTO" , align = "v")
+
+plot_sensitivity_fig
+
+showtext_auto()
+ggsave("fig_4.pdf", plot_sensitivity_fig, width = 12, height = 14, dpi = 300)
 
 
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+  plot_ranking_sensitivity <- function(sensitivity_data, criterion_name, top_n = 20) {
+      sensitivity_data %>%
+      slice(1:top_n) %>%
+      ggplot(aes(x = reorder(plant_name, -rank))) +
+      coord_flip() +
+      geom_segment( aes(x= plant_name, y=rank, yend=rank_plus), color="#4FAE62", linewidth = 4) +
+      geom_segment( aes(x= plant_name, y=rank, yend= rank_minus), color="#C02D45", linewidth = 4) +
+      geom_point(aes(y = rank), color = "black", size = 2.5) +
+      labs(
+        title = paste("Rank sensitivity:", criterion_name),
+        x = "Species",
+        y = "Rank",
+        # subtitle = "Green: +10% weight, Red: -10% weight, Black dot: Original"
+      ) +
+      # Add legend annotations
+      annotate("text", x = 20, y = 86, 
+             label = paste(criterion_name),
+             hjust = 0, size = 4, color = "black") +
+      theme_pubr() +
+      theme(
+        text = element_text(family = "Source sans pro", face = "plain"),
+        axis.ticks = element_line(linewidth = 0.2),
+        axis.ticks.length.y = unit(-0.15, "cm"),
+        axis.line = element_line(linewidth = 0.2),
+        axis.text = element_text(size=11),
+        plot.margin = margin(5,15,5,5),
+        axis.text.y = element_text(face = "italic", size = 10),
+        plot.title = element_text(size = 12),
+        plot.subtitle = element_text(size = 10),
+        axis.title.y = element_blank()
+        )+
+        scale_y_continuous(limits = c(0, 25),
+                           breaks = c(1, 5, 10, 15, 20, 25),
+                           expand = c(0, 0))
+  }
+
+
+
+sensitivity_rank_fig <- 
+  plot_grid(
+    plot_ranking_sensitivity(sensitivity_height, "Height"),
+    plot_ranking_sensitivity(sensitivity_part, "Part of Use"),
+    plot_ranking_sensitivity(sensitivity_duration, "Duration"),
+    plot_ranking_sensitivity(sensitivity_trials, "Trials"),
+    plot_ranking_sensitivity(sensitivity_activities, "Activities"),
+    plot_ranking_sensitivity(sensitivity_products, "Products"),
+    plot_ranking_sensitivity(sensitivity_population, "Population Status"),
+    ncol = 2, labels = "AUTO" , align = "v")
+
+sensitivity_rank_fig
+
+showtext_auto()
+ggsave("fig_s1.pdf", sensitivity_rank_fig, width = 12, height = 14, dpi = 300)
+
+
+
+
+
+
+
+
+
+# Create a bar plot for total score change by criterion
+criteria_sensitivity_plot <-
+  total_score_change_summary %>%
+  ggplot(aes(x = reorder(criterion, total_change), y = total_change, f)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  labs(title = "Total Score Change by Criterion",
+       x = "Criterion",
+       y = "Total Score Change") +
+  theme_pubr() +
+  theme(
+      text = element_text(family = "Source sans pro", face = "plain"),
+      axis.ticks = element_line(linewidth = 0.2),
+      axis.ticks.length.y = unit(-0, "cm"),
+      axis.line = element_line(linewidth = 0.2),
+      axis.text = element_text(size=11),
+      plot.margin = margin(5,15,5,5),
+      # axis.text.y = element_text(face = "italic", size = 10),
+      plot.title = element_text(size = 12),
+      plot.subtitle = element_text(size = 10),
+      axis.title.y = element_blank()
+    )+
+    scale_y_continuous(limits = c(0, 100),
+                       breaks = seq(0, 100, by = 20),
+                       expand = c(0, 0)) 
+criteria_sensitivity_plot
+
+
+showtext_auto()
+ggsave("fig_s2.pdf", criteria_sensitivity_plot, width = 6, height = 4, dpi = 300)
 
 
 
 
 
 ### END OF SCRIPT ###
+
+
